@@ -2,105 +2,127 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
  
+// Needed to manipulate the UI
+using UnityEngine.UI;
+ 
 public class Ball : MonoBehaviour {
  
-    // Balls default movement speed
-    public float speed = 30;
+	// Ball default speed
+	public float speed = 30;
  
-    // The balls Rigidbody component
-    private Rigidbody2D rigidBody;
+	// Reference to the balls Rigidbody component
+	private Rigidbody2D rigidBody;
  
-    // Used to play sound effects
-    private AudioSource audioSource;
+	// Reference the AudioSource for the Ball
+	private AudioSource audioSource;
  
 	// Use this for initialization
 	void Start () {
  
-        // Get reference to the ball Rigidbody
-        rigidBody = GetComponent<Rigidbody2D>();
+		// Get reference to the attached Rigidbody
+		// component
+		rigidBody = GetComponent<Rigidbody2D> ();
  
-        // When the ball is created move it to
-        // the right (1,0) at the desired speed
-        rigidBody.velocity = Vector2.right * speed;
- 
+		// Calculate velocity for the ball
+		rigidBody.velocity = Vector2.right * speed;
 	}
  
-    // Called every time a ball collides with something
-    // the object it hit is passed as a parameter
-    void OnCollisionEnter2D(Collision2D col)
-    {
-     
-        // If the LeftPaddle or RightPaddle hit the
-        // ball simulate the ricochet
-        if ((col.gameObject.name == "LeftPaddle") || (col.gameObject.name == "RightPaddle"))
-        {
+	// Called when the ball collides with anything
+	void OnCollisionEnter2D(Collision2D col){
  
-            HandlePaddleHit(col);
+		// col provides info on the object the ball hit
+		// If it is the left paddle do this
+		if ((col.gameObject.name == "LeftPaddle") || (col.gameObject.name == "RightPaddle")) {
+			handlePaddleHit (col);
+		}
  
-        }
+		if ((col.gameObject.name == "WallBottom") || (col.gameObject.name == "WallTop")) {
  
-        // WallBottom or WallTop
-        if ((col.gameObject.name == "WallBottom") || (col.gameObject.name == "WallTop"))
-        {
-            // Play the sound effect
-            SoundManager.Instance.PlayOneShot(SoundManager.Instance.wallBloop);
-        }
+			// Call for SoundManager to play the wall sound
+			SoundManager.Instance.PlayOneShot (SoundManager.Instance.wallBloop);
+		}
  
-        // LeftGoal or RightGoal
-        if ((col.gameObject.name == "WallLeft") || (col.gameObject.name == "WallRight"))
-        {
-            // Play the sound effect
-            SoundManager.Instance.PlayOneShot(SoundManager.Instance.goalBloop);
+		if ((col.gameObject.name == "WallLeft") || (col.gameObject.name == "WallRight")) {
  
-            // TODO Update Score UI
+			// Call for SoundManager to play the goal sound
+			SoundManager.Instance.PlayOneShot (SoundManager.Instance.goalBloop);
  
-            // Move the ball to the center of the screen
-            transform.position = new Vector2(0, 0);
+			if (col.gameObject.name == "WallLeft") {
  
-        }
+				increaseTextUIScore ("RightScoreUI");
+					
+			} else if (col.gameObject.name == "WallRight") {
  
-    }
+				increaseTextUIScore ("LeftScoreUI");
  
-    void HandlePaddleHit(Collision2D col)
-    {
+			}
  
-        // Find y for the ball vector based
-        // on where the ball hit the paddle
-        // Above the center y angles up
-        // Below the center y angles down
-        float y = BallHitPaddleWhere(transform.position,
-            col.transform.position,
-            col.collider.bounds.size.y);
+			// Change the balls position on the game board to its starting
+			// position
+			transform.position = new Vector2(-1.133788f, 0.1743597f);
+		}
+	}
  
-        // Vector ball moves to
-        Vector2 dir = new Vector2();
+	// Calculate where the ball hits the paddle by dividing
+	// the ball's y coordinate by the paddles height
+	// If the ball hits above the midpoint ricochet up
+	// and vice versa
+	float ballHitPaddleWhere(Vector2 ball, Vector2 paddle,
+		float paddleHeight){
+		return (ball.y - paddle.y) / paddleHeight;
+	}
  
-        // Go left or right on the x axis
-        // depending on which panel was hit
-        if(col.gameObject.name == "LeftPaddle")
-        {
-            dir = new Vector2(1, y).normalized;
-        }
+	void handlePaddleHit(Collision2D col){
  
-        if (col.gameObject.name == "RightPaddle")
-        {
-            dir = new Vector2(-1, y).normalized;
-        }
+		// Pass the balls position, the paddles position,
+		// the height of the paddle
+		float y = ballHitPaddleWhere (transform.position,
+			col.transform.position,
+			col.collider.bounds.size.y);
  
-        // Change the velocity / direction of ball
-        // You assign a vector to velocity
-        rigidBody.velocity = dir * speed;
+		// Calculate direction of ball
+		// A vector is a line pointing from an origin
+		// to a point x, y
+		// Magnitude is the length of the line
+		Vector2 dir = new Vector2();
  
-        // Play sound effect
-        SoundManager.Instance.PlayOneShot(SoundManager.Instance.hitPaddleBloop);
+		// If (0,1) is straight up and down is (0, -1), 
+		// normalized would change our vector into a value 
+		// between 0 and 1
+		if (col.gameObject.name == "LeftPaddle") {
+			dir = new Vector2 (1, y).normalized;
+			Vector2 dir2 = dir = new Vector2 (1, y);
+			Debug.Log ("Dir : " + dir + "Dir2 : " + dir2);
+		}
  
-    }
+		if (col.gameObject.name == "RightPaddle") {
+			dir = new Vector2 (-1, y).normalized;
+		}
  
-    // Find y for the ball vector based
-    // on where the ball hit the paddle
-    float BallHitPaddleWhere(Vector2 ball, Vector2 paddle, float paddleHeight)
-    {
-        return (ball.y - paddle.y) / paddleHeight;
-    }
+		// Change the velocity / direction of the ball
+		// You assign a vector to velocity here
+		rigidBody.velocity = dir * speed;
+ 
+		// Call for SoundManager to play paddle sound
+		SoundManager.Instance.PlayOneShot (SoundManager.Instance.hitPaddleBloop);
+	}
+ 
+	// Increases the score the the text UI name passed
+	void increaseTextUIScore(string textUIName){
+ 
+		// Find the matching text UI component
+		var textUIComp = GameObject.Find(textUIName)
+			.GetComponent<Text>();
+ 
+		// Get the string stored in it and convert to an int
+		int score = int.Parse(textUIComp.text);
+ 
+		// Increment the score
+		score++;
+ 
+		// Convert the score to a string and update the UI
+		textUIComp.text = score.ToString();
+	}
+ 
  
 }
